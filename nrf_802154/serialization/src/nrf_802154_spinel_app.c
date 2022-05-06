@@ -1782,6 +1782,11 @@ uint64_t nrf_802154_first_symbol_timestamp_get(uint64_t end_timestamp, uint8_t p
     return end_timestamp - (frame_symbols * PHY_US_PER_SYMBOL);
 }
 
+uint64_t nrf_802154_mhr_timestamp_get(uint64_t end_timestamp, uint8_t psdu_length)
+{
+    return end_timestamp - (psdu_length * PHY_SYMBOLS_PER_OCTET * PHY_US_PER_SYMBOL);
+}
+
 void nrf_802154_security_global_frame_counter_set(uint32_t frame_counter)
 {
     nrf_802154_ser_err_t res;
