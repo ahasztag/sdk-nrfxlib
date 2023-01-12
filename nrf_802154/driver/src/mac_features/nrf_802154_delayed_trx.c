@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 - 2022, Nordic Semiconductor ASA
+ * Copyright (c) 2018 - 2023, Nordic Semiconductor ASA
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -583,10 +583,16 @@ static void transmit_attempt(dly_op_data_t * p_dly_op_data)
 {
     nrf_802154_log_function_enter(NRF_802154_LOG_VERBOSITY_HIGH);
 
-    // No need to enqueue transmit attempts. Proceed to transmission immediately
-    nrf_802154_pib_channel_set(p_dly_op_data->tx.channel);
+    bool channel_update_success = true;
 
-    if (nrf_802154_request_channel_update(REQ_ORIG_DELAYED_TRX))
+    if (nrf_802154_pib_channel_get() != p_dly_op_data->tx.channel)
+    {
+        nrf_802154_pib_channel_set(p_dly_op_data->tx.channel);
+        channel_update_success = nrf_802154_request_channel_update(REQ_ORIG_DELAYED_TRX);
+    }
+
+    // No need to enqueue transmit attempts. Proceed to transmission immediately
+    if (channel_update_success)
     {
         (void)nrf_802154_request_transmit(NRF_802154_TERM_802154,
                                           REQ_ORIG_DELAYED_TRX,
@@ -606,16 +612,20 @@ static bool receive_attempt(dly_op_data_t * p_dly_op_data)
 {
     nrf_802154_log_function_enter(NRF_802154_LOG_VERBOSITY_HIGH);
 
-    bool result = false;
+    bool result = true;
 
     // This function is expected to result in calling @ref dly_rx_result_notify.
     // In order for that function to differentiate between different delayed RX
     // windows, we atomically insert the ID of the current delayed RX into a FIFO queue.
     dly_rx_data_atomically_push(p_dly_op_data);
 
-    nrf_802154_pib_channel_set(p_dly_op_data->rx.channel);
+    if (nrf_802154_pib_channel_get() != p_dly_op_data->rx.channel)
+    {
+        nrf_802154_pib_channel_set(p_dly_op_data->rx.channel);
+        result = nrf_802154_request_channel_update(REQ_ORIG_DELAYED_TRX);
+    }
 
-    if (nrf_802154_request_channel_update(REQ_ORIG_DELAYED_TRX))
+    if (result)
     {
         result = nrf_802154_request_receive(NRF_802154_TERM_802154,
                                             REQ_ORIG_DELAYED_TRX,
